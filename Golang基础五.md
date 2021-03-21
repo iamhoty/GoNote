@@ -270,7 +270,312 @@ func main() {
 
 3）如果从channel取出数据后，可以继续放入
 
-4）在没有使用协程的情况下，如果channel数据取完了，再取，就会报dead lock
+4）**在没有使用协程的情况下**，如果channel数据取完了，再取，就会报dead lock
+
+```go
+func main()  {
+	// 定义一个可以存放任意类型的管道
+	//var allChan chan interface{}
+	allChan := make(chan interface{}, 3)
+	allChan <- 10
+	allChan <- "tangyu"
+	cat := Cat{"汤姆猫", 4}
+	allChan <- cat
+	<-allChan
+	<-allChan
+	// 获取对列第三个 要先将前2个推出
+	newCat := <-allChan
+	fmt.Printf("newCat=%T, newCat=%v\n", newCat, newCat)
+  // newCat=main.Cat, newCat={汤姆猫 4}
+	a := newCat.(Cat) // 类型断言 因为从interface的channel取出的值认为是空接口类型 需要类型断言进行转换
+	fmt.Printf("newCat.Name=%v\n", a.Name)
+	// newCat.Name=汤姆猫
+}
+```
+
+### 2.8 channel的遍历和关闭
+
+#### 2.8.1 channel的关闭
+
+使用内置的close函数可以关闭channel，当channel**关闭后**，就**不能在向channel写数据了**，但是仍然**可以读出该channel的数据**
+
+```go
+func main() {
+	intChan := make(chan int, 10)
+	intChan <- 10
+	intChan <- 100
+	close(intChan)
+	// close后不能再写入数据到channel
+	intChan <- 200
+	// 报错 panic: send on closed channel
+}
+```
+
+#### 2.8.2 channel的遍历
+
+1）在遍历时，如果channel没有关闭，则回出现**deadlock的错误**
+2）在遍历时，如果channel已经关闭，则会正常遍历数据，遍历完后，就会退出遍历
+
+```go
+func main() {
+	intChan2 := make(chan int, 100)
+	for i := 0; i < 100; i++ {
+		intChan2 <- i * 2
+	}
+	close(intChan2)
+	// 遍历管道时不能用for循环 要用range
+	for v := range intChan2 {
+		fmt.Println("v=", v)
+	}
+}
+```
+
+## 3. goroutine和channel
+
+### 3.1 应用案例一
+
+开启一个writeData协程，向管道intChan中写入50个整数
+开启一个readData协程，从管道intChan中读取writeData写入的数据
+注意：writeData和readDate操作的是同一个管道
+主线程需要等待writeData和readDate协程都完成工作才能退出
+
+![Snipaste_2021-03-21_17-43-27](./asset_5/Snipaste_2021-03-21_17-43-27.png)
+
+```go
+func writeData(intChan chan int)  {
+	for i:=1; i <= 50 ; i++{
+		// 写入数据
+		intChan <- i
+	}
+	close(intChan) // 关闭管道
+}
+
+func readData(intChan chan int, exitChan chan bool)  {
+	for {
+    // 读取不到数据库 会阻塞
+		v, ok:=<-intChan
+		// ok 为false时管道无数据
+		if !ok {
+			break
+		}
+		fmt.Println("读取到数据 >>> ", v)
+	}
+	// 读取完数据 任务完成
+	exitChan <- true
+	close(exitChan)
+}
+
+func main()  {
+	// 创建两个管道
+	intChan := make(chan int, 50)
+	exitChan := make(chan bool, 1)
+	go writeData(intChan)
+	go readData(intChan, exitChan)
+	for {
+		_, ok := <-exitChan
+		fmt.Println("ok>>>", ok)
+		if !ok {
+			break
+		}
+	}
+}
+```
+
+### 3.2 阻塞
+
+协程写的快读的慢会，写的时候会阻塞，不会报deadlock，但是如果编译器发现只有写没有读取数据的协程，编译器阻塞后会报错deadlock
+
+读写协程的频率不一致，不会发生死锁
+
+### 3.3 求素数
+
+![Snipaste_2021-03-21_19-29-56](./asset_5/Snipaste_2021-03-21_19-29-56.png)
+
+```go
+func putNum(intChan chan int) {
+	for i := 0; i < 1000; i++ {
+		intChan <- i
+	}
+	close(intChan)
+	fmt.Println("put over!!!")
+}
+
+func primeNum(intChan chan int, primeChan chan int, exitChan chan bool)  {
+	var flag bool
+	for {
+		num, ok := <-intChan
+		if !ok {
+			break // 取不到数据退出
+		}
+		flag = true
+		// 判断素数
+		for i :=2 ; i < num; i++ {
+			if num % i == 0 {
+				// 不是素数
+				flag = false
+				break
+			}
+		}
+		if flag {
+			// 是素数 方式到primeChan
+			primeChan <- num
+		}
+	}
+	fmt.Println("有一个primeNum 协程因为取不到数据，退出")
+	// 这里我们还不能关闭 primeChan
+	// 向 exitChan 写入true
+	exitChan<- true
+}
+
+func main() {
+	intChan := make(chan int, 1000)
+	primeChan := make(chan int, 2000) // 放入素数结果
+	// 标识管道退出
+	exitChan := make(chan bool, 4)
+
+	// 放入数字
+	go putNum(intChan)
+	// 开启4个协程 判断是否为素数 如果是就放入到primeChan
+	for i := 0; i < 4; i ++ {
+		go primeNum(intChan, primeChan, exitChan)
+	}
+	go func() {
+		for i := 0; i < 4; i ++ {
+      // 不是range遍历 可以不用close管道
+			<-exitChan
+		}
+		// 4个线程结束后 素数取完 关闭管道
+		close(primeChan)
+	}()
+	for {
+		res, ok := <- primeChan
+		// primeChan管道关闭 ，素数判断完成
+		if !ok{
+			break
+		}
+		fmt.Printf("素数=%d\n", res)
+	}
+	fmt.Println("main线程退出")
+}
+```
+
+注：使用range遍历管道时要使用close关闭数组，不然会包deadlock错误
+
+### 3.4 channel使用细节
+
+（1）channel可以只声明为只读或者只写
+
+```go
+func main() {
+	// 默认情况下 管道是双向的 可读可写
+	// 1.声明为只写
+	var chan1 chan<- int
+	chan1 = make(chan int, 3)
+	chan1 <- 10
+
+	// 2.声明为只读
+	var chan2 <-chan int
+}
+```
+
+![Snipaste_2021-03-21_23-51-03](./asset_5/Snipaste_2021-03-21_23-51-03.png)
+
+（2）使用select可以解决管道读取数据的阻塞问题
+
+```go
+func main() {
+	// 使用select解决管道取数据的阻塞问题
+	intChan := make(chan int, 10)
+	for i := 0; i < 10; i++ {
+		intChan <- i
+	}
+
+	stringChan := make(chan string, 5)
+	for i := 0; i < 10; i++ {
+		stringChan <- "hello" + fmt.Sprintf("%d", i)
+	}
+
+	// 传统方式在遍历管道时 如果不关闭就会阻塞而导致deadlock
+	// 在实际开发中 不好确实确定什么时候关闭管道
+	// 使用select解决
+	lable: //跳出for循环
+	for {
+		select {
+		// 如果intChan一直没有关闭 不会一直阻塞而deadlock 会自动向下一个case
+		case v := <-intChan:
+			fmt.Println("从intChan读取的数据>>>", v)
+		case v := <-stringChan:
+			fmt.Println("从stringChan读取的数据>>>", v)
+		default:
+			fmt.Println("都取不到...")
+			break lable // return
+		}
+	}
+}
+```
+
+（3）goroutine中使用recove，解决协程中出现的panic，这样不会影响到主线程和其他协程执行
+
+```go
+func sayHello() {
+	for i := 0; i < 10; i++ {
+		time.Sleep(time.Second)
+		fmt.Println("i>>>", i)
+	}
+}
+
+func test() {
+	// defer + recover
+	defer func() {
+		// 捕获panic
+		if err := recover(); err != nil {
+			fmt.Println("test发生错误", err)
+		}
+	}()
+	var myMap map[int]string
+	// 没有make 就赋值发生错误
+	myMap[0] = "tangyu"
+}
+
+func main() {
+	go sayHello()
+	go test()
+	for i := 0; i < 10; i++ {
+		fmt.Println("main() ok=", i)
+		time.Sleep(time.Second)
+	}
+}
+```
+
+## 4. 反射
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
