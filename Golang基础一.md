@@ -1122,3 +1122,37 @@ fmt.Println("k=", k) // k=17
 
 ![Snipaste_2020-12-23_00-20-18](./asset/Snipaste_2020-12-23_00-20-18.png)
 
+## 4. 常量
+
+### 4.1 定义
+
+```go
+const 常量名 [类型] = 值 // 常量在声明时必须赋值
+const num = 10
+const b = 9 / 3
+const tax int = 0
+const (
+	a = 1
+  b = 2
+)
+const (
+	a = iota // 0 初始值是0 b和c依次加一
+  b // 1
+  c // 2
+) 
+const (
+	a = iota
+  b = iota
+  c, d = iota, iota
+)
+// 0, 1, 2, 2
+```
+
+### 4.2 说明
+
+（1）常量在定义时必须赋值，即编译时必须要是确定常量的值
+
+（2）常量一旦定义后不能修改
+
+（3）常量类型只能是bool、数值类型（int、float等）、string类型
+

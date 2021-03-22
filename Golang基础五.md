@@ -1,3 +1,5 @@
+
+
 # Golang基础五
 
 ## 1. goroutine
@@ -514,7 +516,7 @@ func main() {
 }
 ```
 
-（3）goroutine中使用recove，解决协程中出现的panic，这样不会影响到主线程和其他协程执行
+（3）goroutine中使用recover，解决协程中出现的panic，这样不会影响到主线程和其他协程执行
 
 ```go
 func sayHello() {
@@ -549,15 +551,173 @@ func main() {
 
 ## 4. 反射
 
+### 4.1 应用场景
+
+（1）json的序列化
+
+（2）适配器（桥连接）
+
+### 4.2 基本介绍
+
+1）反射可以在运行时动态获取变量的各种信息，比如变量的类型（type），类别（kind）
+
+2）如果是结构体变量，还可以获取到结构体本身的信息（包括结构体的字段、方法）
+
+3）通过反射，可以修改变量的值，可以调用关联的方法
+
+4）使用反射，需要import （“reflect”）
+
+![Snipaste_2021-03-22_22-55-29](./asset_5/Snipaste_2021-03-22_22-55-29.png)
+
+package reflect
+
+```go
+import "reflect"
+```
+
+reflect包**实现了运行时反射**，允许程序操作任意类型的对象。典型用法是用静态类型interface{}保存一个值，通过调用TypeOf获取其动态类型信息，该函数返回一个Type类型值。调用ValueOf函数返回一个Value类型值，该值代表运行时的数据。Zero接受一个Type类型参数并返回一个代表该类型零值的Value类型值
+
+### 4.3 反射重要的函数和概念
+
+1）reflect. TypeOf(变量名)，获取变量的类型，返回 reflect.Type类型
+
+2）reflect. ValueOf(变量名)，获取变量的值，返回 reflect. Value类型reflect. Value是一个结构体类型。【看文档】,通过 reflect.vlue可以获取到关于该变量的很多信息
+
+3）变量、interface{}和reflect.Value是可以相互转换的，这点在实际开发中，会经常使用到
+
+![Snipaste_2021-03-23_00-01-01](./asset_5/Snipaste_2021-03-23_00-01-01.png)
+
+![Snipaste_2021-03-23_00-04-24](./asset_5/Snipaste_2021-03-23_00-04-24.png)
+
+### 4.4 应用场景
+
+（1）不知道接口调用哪个函数，根据传入参数在运行时确定调用的具体接口，这种需要对函数或方法反射。例如以下这种桥接模式
+
+```go
+func bridge(funcPtr interface{}，args...interface{})
+```
+
+
+第一个参数funcPtr以接口的形式传入函数指针，函数参数args以可变参数的形式传入，bridge函数中可以用反射来动态执行funcPtr函数
+
+（2）对结构体序列化时，如果结构体有指定Tag，也会使用到反射生成对应的字符串
+
+### 4.5 快速入门案例
+
+#### 4.5.1 基本类型（int）的反射
+
+```go
+// 专门用于反射
+func reflectTest01(b interface{})  {
+	// 通过发射获取变量的type kind值
+	// 获取到reflect.Type
+	rType := reflect.TypeOf(b)
+	fmt.Println("rType>>>", rType) // int
+	fmt.Printf("rType>>>%T\n", rType) // *reflect.rtype
+	fmt.Println("rType>>>", rType.Name()) // int
+	fmt.Println("rType>>>", rType.Kind()) // int
+
+	// 获取reflect.Value
+	rValue := reflect.ValueOf(b)
+	fmt.Println("vType>>>", rValue) // 100但不是真正的int 100
+	fmt.Printf("vType>>>%T\n", rValue) // reflect.Value
+
+	// 将rValue转成interface{}
+	iv := rValue.Interface()
+	// 将interface{}转成num
+	num := iv.(int)
+	fmt.Println("num>>>", num)
+}
+
+func main() {
+	var num int = 100
+	// 通过num获取num的信息
+	reflectTest01(num)
+}
+```
+
+#### 4.5.2 结构体的反射
+
+```go
+type Student struct {
+	Name string
+	Age  int
+}
+
+func reflectStruct(b interface{}) {
+	// 获取reflect.type类型
+	rTyp := reflect.TypeOf(b)
+	fmt.Println("rTyp>>>", rTyp) // main.Student
+	// 获取reflect.Value
+	rVal := reflect.ValueOf(b)
+	fmt.Println("rVal>>>", rVal) // {ty 18}
+
+	iv := rVal.Interface()
+	fmt.Printf("iv>>>%T\n", iv) // main.Student
+	fmt.Printf("iv>>>%v\n", iv) // {ty 18}
+	// iv是接口类型 需要断言转为Student类型
+	stu, ok := iv.(Student)
+	if ok{
+		fmt.Println("name", stu.Name) // ty
+	}
+}
+
+func main() {
+	stu := Student{
+		"ty", 18,
+	}
+	reflectStruct(stu)
+}
+```
+
+### 4.6 反射使用细节
+
+（1）获取Kind 变量的类型，返回的是常量
+
+```go
+rTyp := reflect.TypeOf(b)
+rVal := reflect.ValueOf(b)
+// 获取 变量对应的Kind
+//(1) rVal.Kind() ==>
+kind1 := rVal.Kind()
+//(2) rTyp.Kind() ==>
+kind2 := rTyp.Kind()
+fmt.Printf("kind =%v kind=%v\n", kind1, kind2) // kind =struct kind=struct
+```
+
+（2） Type和Kind的区别
+
+Type是类型，Kind是类别，Type和Kind可能是相同的，也可能是不同的
+
+```go
+var num int= 10 // num的Type是int，Kind也是int
+var stu Student // stu的Type是main.Student，Kind是struct
+```
+
+（3）通过反射可以让变量在 interface{} 和 reflect.Value 之间相互转换
+
+```go
+func reflectStruct(b interface{}) {
+	// 获取reflect.Value
+	rVal := reflect.ValueOf(b) // 变量 -> reflect.value
+  iv := rVal.Interface() // reflect.value -> interface{}
+  rVal02 := reflect.ValueOf(iv) // interface{} -> reflect.value
+}
+```
 
 
 
+![Snipaste_2021-03-23_01-27-58](./asset_5/Snipaste_2021-03-23_01-27-58.png)
 
+（4）使用反射的方式来获取变量的值（并返回对应的类型），要求数据类型匹配，比如x是int，那么就应该用Int()，否则报panic
 
-
-
-
-
+```go
+func reflectTest01(b interface{})  {
+	// 获取reflect.Value
+	rValue := reflect.ValueOf(b)
+  nun := rValue.Int()
+}
+```
 
 
 
