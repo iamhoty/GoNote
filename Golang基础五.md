@@ -705,10 +705,6 @@ func reflectStruct(b interface{}) {
 }
 ```
 
-
-
-![Snipaste_2021-03-23_01-27-58](./asset_5/Snipaste_2021-03-23_01-27-58.png)
-
 （4）使用反射的方式来获取变量的值（并返回对应的类型），要求数据类型匹配，比如x是int，那么就应该用Int()，否则报panic
 
 ```go
@@ -716,6 +712,244 @@ func reflectTest01(b interface{})  {
 	// 获取reflect.Value
 	rValue := reflect.ValueOf(b)
   nun := rValue.Int()
+}
+```
+
+（5）通过反射来修改变量，注意当使用SetXxx方法来设置，需要**通过对应的指针类型**来完成，这样才能改变传入的变量的值，同时需要使用到reflect.Value.Elem()方法
+
+```go
+func (v Value) Elem() Value // 获取指针指向变量的值
+```
+
+Elem**返回v持有的接口保管的值的Value封装，或者v持有的指针指向的值的Value封装**。如果v的Kind不是Interface或Ptr会panic；如果v持有的值为nil，会返回Value零值。
+
+```go
+// 通过反射修改值
+func reflect01(b interface{})  {
+	// 获取reflect.Value
+	rVal := reflect.ValueOf(b)
+	fmt.Printf("rVal kind=%v\n", rVal.Kind())
+	// Elem返回指针指向的值
+	rVal.Elem().SetInt(20)
+}
+
+func main()  {
+	var num int = 10
+	reflect01(&num)
+	fmt.Println("num >>>", num)
+}
+```
+
+### 4.7 反射实践
+
+（1）使用反射来遍历结构体的字段，调用结构体的方法，并获取结构体标签的值
+
+```go
+type Monster struct {
+	Name  string `json:"name"`
+	Age   int    `json:"monster_age"`
+	Score float32
+	Sex   string
+}
+
+func (s Monster) Print() {
+	fmt.Println("---start---")
+	fmt.Println(s)
+	fmt.Println("---end---")
+}
+
+func (s Monster) GetSum(n1, n2 int) int {
+	return n1 + n2
+}
+
+func (s Monster) Set(name string, age int, score float32, sex string) {
+	s.Name = name
+	s.Age = age
+	s.Score = score
+	s.Sex = sex
+}
+
+func TestStruct(a interface{}) {
+	typ := reflect.TypeOf(a)
+	val := reflect.ValueOf(a)
+	// 获取a的类别
+	kd := val.Kind()
+	if kd != reflect.Struct {
+		// 不是结构体 退出
+		return
+	}
+	// 获取该及结构体有几个字段
+	num := val.NumField() // 4
+	fmt.Printf("struct has %d fields\n", num)
+	// 遍历结构体的所有字段
+	for i := 0; i < num; i++ {
+		fmt.Printf("Field字段值是: %v\n", val.Field(i)) // 黄鼠狼精 400 30.8
+		// 获取struct标签 注意需要通过reflect.Type来获取tag标签值
+		tagVal := typ.Field(i).Tag.Get("json")
+		if tagVal != "" {
+			fmt.Printf("Field %d tag是:%v\n", i, tagVal)
+			// name  monster_age
+		}
+	}
+
+	// 获取该结构体有多少个方法
+	numOfMethod := val.NumMethod()
+	fmt.Printf("struct has %d methods\n", numOfMethod)
+	// 获取第二个方法 并调用
+	// 函数顺序是按照编码排序
+	val.Method(1).Call(nil) // {黄鼠狼精 400 30.8 }
+	// Call参数需要value切片 返回结果也是value切片
+	var params []reflect.Value
+	params = append(params, reflect.ValueOf(10))
+	params = append(params, reflect.ValueOf(20))
+	res := val.Method(0).Call(params) // []reflect.Value
+	fmt.Println("res=", res[0].Int()) // 30
+}
+
+func main() {
+	//创建了一个Monster实例
+	var a Monster = Monster{
+		Name:  "黄鼠狼精",
+		Age:   400,
+		Score: 30.8,
+	}
+	//将Monster实例传递给TestStruct函数
+	TestStruct(a)
+}
+```
+
+（2）修改字段值
+
+```go
+num := val.Elem().Numfield()
+val.Elem().Field(0).SetString("白象精")
+```
+
+（3）适配器
+
+```go
+func TestReflectFunc(t *testing.T) {
+	cal1 := func(v1 int, v2 int) {
+		t.Log(v1, v2)
+	}
+	call2 := func(v1 int, v2 int, s string) {
+		t.Log(v1, v2, s)
+	}
+	var (
+		function reflect.Value
+		inValue  []reflect.Value
+		n        int
+	)
+	bridge := func(call interface{}, args ...interface{}) {
+		n = len(args)
+		inValue = make([]reflect.Value, n)
+		for i := 0; i < n; i++ {
+			inValue[i] = reflect.ValueOf(args[i])
+		}
+		function = reflect.ValueOf(call)
+		function.Call(inValue)
+
+	}
+	bridge(cal1, 1, 2)
+	bridge(call2, 1, 2, "test2")
+}
+```
+
+（4）使用反射操作任意结构体类型
+
+```go
+type user struct {
+	UserId string
+	Name   string
+}
+
+func TestReflectStruct(t *testing.T) {
+	var (
+		model *user
+		sv    reflect.Value
+	)
+	model = &user{}
+	sv = reflect.ValueOf(model)
+	t.Log("reflect.ValueOf", sv.Kind().String())
+	sv = sv.Elem()
+	t.Log("reflect.ValueOf.Elem", sv.Kind().String())
+	sv.FieldByName("UserId").SetString("12345678")
+	sv.FieldByName("Name").SetString("nickname")
+	t.Log("model", model)
+}
+```
+
+（5）使用反射创建并操作结构体
+
+```go
+type user struct {
+	Userld string
+	Name   string
+}
+
+func TestReflectStructPtr(t *testing.T) {
+	var (
+		model *user
+		st    reflect.Type
+		elem  reflect.Value
+	)
+	st = reflect.TypeOf(model) //获取类型*user
+	t.Log("reflect.TypeOf", st.Kind().String()) //.ptr
+	st = st.Elem() //st指向的类型
+	t.Log("reflect.TypeOf.Elem", st.Kind().String()) //struct
+	elem = reflect.New(st)  // New返回一个value类型值，该值持有一个指向类型为typ的新申请的零值的指针t.Log("reflect.New", elem.Kind().string())//ptr
+	t.Log("reflect.New.Elem", elem.Elem().Kind().String()) //struct
+	// model就是创建的user结构体变量（实例）
+	model = elem.Interface().(*user) // model是*user它的指向和elem是一样的.
+	elem = elem.Elem() // 取得elem指向的值
+	elem.FieldByName("UserId").SetString("12345678") // 赋值..
+	elem.FieldByName("Name").SetString("nickname")
+	t.Log("model model.Name", model, model.Name)
+}
+```
+
+### 4.8 练习
+
+（1）编写一个Cal结构体，有两个字段Num1，和Num2。
+（2）方法GetSub（name string）
+（3）使用反射遍历Cal结构体所有的字段信息
+（4）使用反射机制完成对GetSub的调用，输出形式为'tom完成了减法运行，8-3=5"
+
+```go
+type Cal struct {
+	Num1 int
+	Num2 int
+}
+
+func (cal Cal) GetSub(name string) {
+	res := cal.Num1 - cal.Num2
+	fmt.Printf("%v完成了减法运行 %d-%d=%d\n",
+		name, cal.Num1, cal.Num2, res)
+}
+
+func ReflectCal(c interface{})  {
+	typ := reflect.TypeOf(c)
+	val :=  reflect.ValueOf(c)
+	num := val.Elem().NumField()
+	// 遍历Cal的字段信息
+	for i:= 0; i < num; i ++ {
+		FieldName := typ.Elem().Field(i).Name
+		fmt.Println("字段名是", FieldName) 
+		// 	字段名是 Num1
+		// 	字段名是 Num2
+	}
+	// 设置值
+	val.Elem().Field(0).SetInt(8) 
+	val.Elem().Field(1).SetInt(3)
+	// 调用GetSub方法 参数是value切片
+	name := []reflect.Value{reflect.ValueOf("tom")}
+	val.Elem().Method(0).Call(name)
+	// tangyu完成了减法运行 8-3=5
+}
+
+func main() {
+	var c Cal
+	ReflectCal(&c)
 }
 ```
 
