@@ -127,6 +127,7 @@ func main() {
 			fmt.Println("readString error", err)
 		}
 		line = strings.Trim(line, " \r\n")
+    // 用户输入exit就退出
 		if line == "exit" {
 			fmt.Println("客户端退出")
 			break
@@ -196,6 +197,20 @@ func main(){
 	fmt.Printf("listen >>> %v\n", listen)
 }
 ```
+
+## 2. 海量用户及时通讯项目
+
+### 2.1 需求分析
+
+1）用户注册
+2）用户登录
+3）显示在线用户列表4）群聊（广播）
+5）点对点聊天
+6）离线留言
+
+### 2.2 技术准备
+
+redis数据库
 
 
 

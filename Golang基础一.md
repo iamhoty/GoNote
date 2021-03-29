@@ -198,8 +198,6 @@ fmt.Println("aaaaaaaaaaaaaaaa" +
 
 ​	go中文标准库文档：https://studygolang.com/pkgdoc
 
-
-
 ## 2. 变量
 
 ### 2.1 变量的基本使用
