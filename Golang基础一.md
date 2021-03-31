@@ -117,7 +117,7 @@ go run test_01.go
 
 编译可以指定生成的可执行文件名，在windows下：
 
-```shell
+```go
 go build -o mytest.exe test.go
 ```
 
@@ -197,6 +197,13 @@ fmt.Println("aaaaaaaaaaaaaaaa" +
 ![Snipaste_2020-12-13_20-56-07](./asset/Snipaste_2020-12-13_20-56-07.png)
 
 ​	go中文标准库文档：https://studygolang.com/pkgdoc
+
+### 1.11 go环境变量设置
+
+```go
+go env // 查看go的环境配置
+go env -w GOPATH="xxx" // 修改环境配置
+```
 
 ## 2. 变量
 
