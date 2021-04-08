@@ -1,8 +1,10 @@
 package process
 
 import (
+	"encoding/json"
 	"fmt"
 	"gocode/chartroom/client/utils"
+	"gocode/chartroom/common/message"
 	"net"
 	"os"
 )
@@ -18,14 +20,17 @@ func ShowMenu() {
 
 	var key int
 	var content string
-
+	// 因为，我们总会使用到SmsProcess实例，因此我们将其定义在switch外部
+	smsProcess := &SmsProcess{}
 	fmt.Scanf("%d\n", &key)
 	switch key {
 	case 1:
 		fmt.Println("显示在线用户列表-")
+		outputOnlineUser()
 	case 2:
 		fmt.Println("你想对大家说的什么:)")
 		fmt.Scanf("%s\n", &content)
+		smsProcess.SendGroupMes(content)
 	case 3:
 		fmt.Println("信息列表")
 	case 4:
@@ -50,7 +55,21 @@ func serverProcessMes(conn net.Conn) {
 			return
 		}
 		// 如果读取到消息，又是下一步处理逻辑
-		fmt.Printf("mes=%v\n", mes)
+		switch mes.Type {
+		case message.NotifyUserStatusMesType:
+			// type NotifyUserStatusMes struct {
+			//	 UserId int `json:"userId"` // 用户id
+			//	 Status int `json:"status"` // 用户的状态
+			// }
+			// 1.取出.NotifyUserStatusMes
+			var notifyUserStatusMes message.NotifyUserStatusMes
+			json.Unmarshal([]byte(mes.Data), &notifyUserStatusMes)
+			// 2.把这个用户的信息，状态保存到客户map[int]User中
+			updateUserStatus(&notifyUserStatusMes)
+		case message.SmsMesType: // 有人群发消息
+			outputGroupMes(&mes)
+		default:
+			fmt.Println("服务器端返回了未知的消息类型 mes=", mes)
+		}
 	}
-
 }
