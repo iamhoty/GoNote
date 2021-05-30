@@ -98,7 +98,7 @@ func test01(arr *[3]int)  {
 
 ### 1.4 数组和切片的区别
 
-​	[]int 没有定义长度的是切片，[...]int则是切片
+​	[]int 没有定义长度的是切片，[...]int或指定长度则是数组
 
 ### 1.5 二维数组
 
@@ -129,6 +129,18 @@ func main() {
 
 ## 2. 切片
 
+### 为什么使用切片
+
+在Go语言中几乎在所有的场景中，使用切片来代替数组
+
+弥补数组的不足：
+
+1.数组的容量是固定，不能自动扩展
+
+2.值传递，数组作为函数参数时，将整个数组值拷贝一份给形参
+
+切片的本质：不是一个数组的指针，是一种新数据结构，用来操作数组内部元素。
+
 ### 2.1 定义切片
 
 ![Snipaste_2021-02-03_00-27-21](./asset_3/Snipaste_2021-02-03_00-27-21.png)
@@ -152,7 +164,7 @@ slice1 := intArr[1:3]
 fmt.Println("切片的容量（可动态变化）", cap(slice1)) // 4
 ```
 
-slice从底层来说，其实就是一个数据结构（struct结构体）
+**slice从底层来说，其实就是一个数据结构（struct结构体）**
 
 ```go
 type slice struct{
@@ -173,7 +185,7 @@ fmt.Println("slice 的元素是 =", slice) //  22, 33
 // slice 的元素是 = [22 34]
 ```
 
-### 2.2 切片的使用
+### 2.2 切片的创建方式
 
 （1）切片去引用已经创建好的数组
 
@@ -189,6 +201,7 @@ slice1 = intArr[1:3] // [2 3]
 	- 如果没有给切片的各个元素赋值，默认值是0、""、false
 	- 通过make方式创建的切片对应的数组是由make底层维护，对外不可见，只能通过slice去访问各个元素
 	- make创建切片时也会创建一个数组，切片指向创建的数组
+	- 不指定容量时，容量默认等于长度
 
 ```go
 var 切片名 []make(type, len, [cap]) // 数据类型 长度 容量
@@ -199,11 +212,15 @@ slice[1] = 10
 slice[2] = 20
 fmt.Println("切片的容量", cap(slice)) // 10
 fmt.Println("切片的长度", len(slice)) // 5
+
+s3 := make([]int, 5)
+fmt.Println(len(s3)) // 5
+fmt.Println(cap(s3)) // 5
 ```
 
 ![Snipaste_2021-02-04_00-47-50](./asset_3/Snipaste_2021-02-04_00-47-50.png)
 
-（3）直接定义
+（3）直接定义，自动推导
 
 ```go
 slice := []string{"tom", "jack", "jerry"}
@@ -232,7 +249,7 @@ func main() {
 
 （1）切片定义完后，要**引用一个数组**或者**make一个空间**后才能使用
 
-（2）切片还可以继续切片
+（2）切片还可以继续切片，切片后的切片容量跟随底层数组
 
 ```go
 slice1 := []int{1,2,3,4,5}
@@ -270,6 +287,15 @@ var sliceBak = make([]int, 10)
 fmt.Println(slice)
 copy(sliceBak, slice)
 fmt.Println("拷贝的数组sliceBak", sliceBak) //[1 2 3 4 5 0 0 0 0 0]
+
+data := [...]int{0,1,2,3,4,5,6,7,8,9}
+s1 := data[8:]
+s2 := data[:5]
+copy(s2, s1)
+s3 := make([]int, 1)
+fmt.Println(s2) // [8 9 2 3 4]
+copy(s3, s2)
+fmt.Println(s3) // [8] 
 ```
 
 ### 2.7 string和slice
@@ -380,7 +406,7 @@ func BinarySearch(arr *[6]int, leftIndex int, rightIndex int, findValue int) {
 
 - value可以相同
 
-- key-value是无序的
+- key-value是**无序的**
 
 ```go
 var a map[string]string
@@ -394,12 +420,12 @@ fmt.Println(a)
 ### 2. 使用方式
 
 ```go
-// 声明 就直接make
+// 1.声明 就直接make
 cities := make(map[string]string)
 cities["no1"] = "北京"
 cities["no2"] = "天津"
 cities["no3"] = "上海"
-// 声明时 直接赋值
+// 2.声明时 直接赋值
 heroes := map[string]string{
 		"hero1": "宋江",
 		"hero2": "吴用", // 注意逗号
@@ -578,7 +604,8 @@ func main() {
 - golang仍有**继承、封装、多态**的特性。
 - golang中**面向接口编程**是非常重要的特性。
 - 耦合度非常低。
-- 结构体是**值类型**。
+- 结构体是**值类型**。是一种数据类型，等价于 int byte bool string
+- **结构体传参是值拷贝传递，但几乎不用，内存消耗大，效率低**
 
 ### 2. 使用
 
@@ -594,7 +621,7 @@ func main() {
 	person.Name = "ty"
 	person.Age = 20
   fmt.Println("方式1", person) //{"ty" 20}
-	// 方式2
+	// 方式2 必须初始化完整
 	p2 := Person1{"ty", 20}
 	fmt.Println("方式2", p2)
 
@@ -617,7 +644,7 @@ func main() {
 }
 ```
 
-（1）结构体是自定义的数据类型
+（1）结构体是自定义的**数据类型**
 
 （2）结构体变量是具体的，代表一个具体变量
 
@@ -711,6 +738,8 @@ p2存的值为p1的地址并指向p1，p2本身也有地址
 ### 4. 注意细节
 
 （1）结构体所有字段在**内存中是连续的**
+
+结构体的地址与结构体首个元素地址相等
 
 ```go
 //结构体

@@ -677,7 +677,347 @@ func main() {
 }
 ```
 
+### 3.5 单向环形链表
 
+```go
+package main
+
+import (
+	"fmt"
+)
+
+// 定义猫的结构体结点
+type CatNode struct {
+	no   int
+	name string
+	next *CatNode
+}
+
+func InsertCatNode(head *CatNode, newCatNode *CatNode) {
+	// 判断是不是添加第一只猫
+	if head.next == nil {
+		head.no = newCatNode.no
+		head.name = newCatNode.name
+		// 构成一个环形
+		head.next = head
+		fmt.Println(newCatNode, "加入到环形的链表")
+		return
+	}
+
+	temp := head
+	for {
+		// 找到环形的最后一个节点 也就是头节点
+		if temp.next == head {
+			break
+		}
+		temp = temp.next
+	}
+	// 加入到链表中
+	temp.next = newCatNode
+	newCatNode.next = head
+}
+
+// 输出这个环形的链表
+func ListCircleLink(head *CatNode) {
+	fmt.Println("环形链表的情况如下：")
+	temp := head
+	if temp.next == nil {
+		fmt.Println("空空如也的环形链表...")
+		return
+	}
+	for {
+		fmt.Printf("猫的信息为=[id=%d name=%s]\n", temp.no, temp.name)
+		if temp.next == head {
+			break
+		}
+		temp = temp.next
+	}
+}
+
+// 删除一只猫
+func DelCatNode(head *CatNode, id int) *CatNode {
+	temp := head // temp指向head
+	helper := head // helper指向环形链表的最后
+	// 空链表
+	if temp.next == nil {
+		fmt.Println("这是一个空的环形链表，不能删除")
+		return head
+	}
+
+	// 只有一个节点
+	if temp.next == head {
+		if temp.no == id {
+			temp.next = nil
+		}
+		return head
+	}
+
+	// 将helper 定位到链表最后
+	for {
+		if helper.next == head {
+			break
+		}
+		helper = helper.next
+	}
+
+	// 如果有两个包含两个以上节点
+	flag := true
+	for {
+		if temp.next == head { // 如果到这来，说明我比较到最后一个【最后一个还没比较】
+			break
+		}
+		if temp.no == id {
+			// 删除的是头节点
+			if temp == head {
+				head = head.next
+			}
+			// 找到 直接删除
+			helper.next = temp.next
+			fmt.Printf("猫猫=%d\n", id)
+			flag = false
+			break
+		}
+		temp = temp.next
+		helper = helper.next
+	}
+	if flag {
+		if temp.no == id {
+			helper.next = temp.next
+			fmt.Printf("猫猫=%d\n", id)
+		} else {
+			fmt.Printf("对不起，没有no=%d\n", id)
+		}
+	}
+	return head
+}
+
+
+func main() {
+	// 这里我们初始化一个环形链表的头结点
+	head := &CatNode{}
+
+	// 创建一只猫
+	cat1 := &CatNode{
+		no:   1,
+		name: "tom",
+	}
+	// 引用传值
+	cat2 := &CatNode{
+		no:   2,
+		name: "tom2",
+	}
+	cat3 := &CatNode{
+		no:   3,
+		name: "tom3",
+	}
+	InsertCatNode(head, cat1)
+	InsertCatNode(head, cat2)
+	InsertCatNode(head, cat3)
+	ListCircleLink(head)
+	head = DelCatNode(head, 1)
+	ListCircleLink(head)
+}
+```
+
+### 3.6 约瑟夫问题
+
+Joseph问题为：
+
+​	设编号为1，2，..n的n个人围坐一圈，约定编号为k（1 <= k <= n）的人从1开始报数，数到m的那个人出列，它的下一位又从1开始报数，数到m的那个人又出列，依次类推，直到所有人出列为止，由此产生一个出队编号的序列。
+
+```go
+package main
+
+import (
+	"fmt"
+)
+
+type Boy struct {
+	No   int
+	Next *Boy // 指向下一个小孩的指针[默认值是nil]
+}
+
+// 编写一个函数，构成单向的环形链表
+// num ：表示小孩的个数
+// *Boy : 返回该环形的链表的第一个小孩的指针
+func AddBoy(num int) *Boy {
+	first := &Boy{}
+	curBoy := &Boy{}
+
+	if num < 1 {
+		fmt.Println("num的值不对")
+		return first
+	}
+	// 循环构建环形链表
+	for i := 1; i <= num; i++ {
+		boy := &Boy{
+			No: i,
+		}
+		//1. 因为第一个小孩比较特殊
+		if i == 1 {
+			first = boy
+			curBoy = boy
+			curBoy.Next = first
+		} else {
+			curBoy.Next = boy
+			curBoy = boy
+			curBoy.Next = first
+		}
+	}
+	return first
+}
+
+//显示单向的环形链表[遍历]
+func ShowBoy(first *Boy) {
+	//处理一下如果环形链表为空
+	if first.Next == nil {
+		fmt.Println("链表为空，没有小孩...")
+		return
+	}
+	curBoy := first
+	for {
+		fmt.Printf("小孩编号=%d ->\n", curBoy.No)
+		// 退出条件 整个链表遍历完
+		if curBoy.Next == first {
+			break
+		}
+		curBoy = curBoy.Next
+	}
+}
+
+func PlayGame(first *Boy, startNo int, countNum int) {
+	//1. 空的链表我们单独的处理
+	if first.Next == nil {
+		fmt.Println("空的链表，没有小孩")
+		return
+	}
+	//2. 需要定义辅助指针，帮助我们删除小孩
+	tail := first
+	//3. 让tail执行环形链表的最后一个小孩,这个非常的重要
+	//因为tail 在删除小孩时需要使用到.
+	for {
+		if tail.Next == first {
+			break
+		}
+		tail = tail.Next
+	}
+	//4. 让first 移动到 startNo [后面我们删除小孩，就以first为准]
+	for i := 1; i <= startNo-1; i++ {
+		first = first.Next
+		tail = tail.Next
+	}
+	//5. 开始数 countNum, 然后就删除first 指向的小孩
+	for {
+		for i := 1; i <= countNum-1; i++ {
+			first = first.Next
+			tail = tail.Next
+		}
+		fmt.Printf("小孩编号为%d 出圈 \n", first.No)
+		//删除first执行的小孩
+		first = first.Next
+		tail.Next = first
+		//判断如果 tail == first, 圈子中只有一个小孩.
+		if tail == first {
+			break
+		}
+	}
+	fmt.Printf("小孩小孩编号为%d 出圈 \n", first.No)
+}
+
+func main() {
+
+	first := AddBoy(20)
+	//显示
+	ShowBoy(first)
+	PlayGame(first, 20, 3)
+}
+```
+
+## 4. 排序
+
+### 4.1 选择排序
+
+先找到最大值（最小值），再进行交换，而不是比较一次交换一次
+
+```go
+package main
+
+import "fmt"
+
+//编写函数selectSort 完成排序
+func selectSort(arr *[6]int) {
+	//1.假设  arr[0] 最大值
+	for j := 0; j < len(arr)-1; j++ {
+		max := arr[j]
+		maxIndex := j
+		//2.遍历
+		for i := j + 1; i < len(arr); i++ {
+			// 找到最大值
+			if max < arr[i] {
+				max = arr[i]
+				maxIndex = i
+			}
+		}
+		// 交换 maxIndex如果没有改变则不交换
+		if maxIndex != j {
+			arr[j], arr[maxIndex] = arr[maxIndex], arr[j]
+		}
+	}
+
+}
+
+func main() {
+	//定义一个数组 , 从大到小
+	arr := [6]int{10, 34, 19, 100, 80, 789}
+	selectSort(&arr)
+	fmt.Println("arr >>> ", arr)
+}
+```
+
+### 4.2 插入排序
+
+​	插入排序( Insertion Sorting)的基本思想是：把n个待排序的元素看成为一个**有序表**和一个**无序表**，开始时有序表中只包含一个元素，无序表中包含有n-1个元素，排序过程中每次从无序表中取出第一个元素，把它的排序码依次与有序表元素的排序码进行比较，将它插入到有序表中的适当位置，使之成为新的有序表。
+
+```go
+package main
+
+import "fmt"
+
+func InsertSort(arr *[5]int) {
+	for i := 1; i < len(arr); i++ {
+		// 从大到小
+		insertVal := arr[i] // 插入的值
+		insertIndex := i - 1
+		for insertIndex >= 0 && arr[insertIndex] < insertVal {
+			arr[insertIndex+1] = arr[insertIndex] // 数据后移
+			insertIndex--
+		}
+		if insertIndex+1 != i {
+			arr[insertIndex+1] = insertVal
+		}
+	}
+
+}
+
+func main() {
+	arr := [6]int{23, 0, 12, 56, 34, 100}
+	//InsertSort(&arr)
+	I(&arr)
+	fmt.Println(arr)
+}
+
+func I(arr *[6]int) {
+	for i := 1; i < len(arr); i++ {
+		j := i
+		for j > 0 {
+			if arr[j] > arr[j-1] {
+				arr[j], arr[j-1] = arr[j-1], arr[j]
+			}
+			j--
+		}
+	}
+}
+```
 
 
 

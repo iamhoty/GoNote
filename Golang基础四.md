@@ -463,6 +463,81 @@ func main() {
 }
 ```
 
+### 1.6 文件操作总结
+
+#### 1.6.1 Create
+
+文件不存在创建，文件存在会将文件内容清空
+
+参数：name，打开文件的路径：绝对路径、相对路径
+
+####1.6.2 Open
+
+以只读的方式打开文件。文件不存在则打开失败
+
+参数：name，打开文件的路径：绝对路径、相对路径
+
+#### 1.6.3 OpenFile
+
+以只读、只写、读写方式打开文件。文件不存在则打开失败
+
+参数1：name，打开文件的路径：绝对路径、相对路径
+
+参数2：打开文件权限：O_RDONLY、O_WRONLY、O_REWR
+
+参数3：模式。0表示8进制
+
+#### 1.6.4 按字符串写 WriteString
+
+```go
+func main() {
+	f, err := os.OpenFile("file.txt", os.O_RDWR, 0666)
+	if err != nil {
+		fmt.Println("open file err", err)
+		return
+	}
+	defer f.Close()
+	n, err := f.WriteString("123") // 3
+}
+```
+
+####1.6.5 按位置写 Seek
+
+参数1：偏移量。正：向文件尾偏，负：向文件头偏
+
+参数2：偏移起始位置
+
+​			io.SeekStart 文件起始位置
+
+​			io.SeekCurrent 文件的当前位置
+
+​			io.SeekEnd 文件结尾位置
+
+​			返回值：表示从文件起始位置，到当前文件读写指针位置的偏移量
+
+#### 1.6.6 按字节写 WriteAt
+
+在文件指定偏移位置，写入[]byte。通常搭配Seek使用
+
+```go
+func (f *File) WriteAt(b []byte, off int64) (n int, err error)
+```
+
+#### 1.6.7 按行读文件
+
+1.创建一个带有缓冲区的Reader
+
+```go
+reader := bufo.NewReader(打开的文件指针)
+```
+
+2.读取数据
+
+```go
+str, err := reader.ReadString('\n')
+if err == io.EOF // 到达文件结尾
+```
+
 ## 2. 命令行参数
 
 ### 2.1 基本介绍
