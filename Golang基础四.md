@@ -528,7 +528,7 @@ func (f *File) WriteAt(b []byte, off int64) (n int, err error)
 1.创建一个带有缓冲区的Reader
 
 ```go
-reader := bufo.NewReader(打开的文件指针)
+reader := bufio.NewReader(打开的文件指针)
 ```
 
 2.读取数据
@@ -536,6 +536,164 @@ reader := bufo.NewReader(打开的文件指针)
 ```go
 str, err := reader.ReadString('\n')
 if err == io.EOF // 到达文件结尾
+```
+
+#### 1.6.8 大文件拷贝
+
+```go
+package main
+
+import (
+	"bufio"
+	"fmt"
+	"io"
+	"os"
+)
+
+func main() {
+	fileR, err := os.Open("/Users/yutang/Documents/golang/GoNote/Golang基础一.md")
+	if err != err {
+		fmt.Println("open read file error", err)
+	}
+	defer fileR.Close()
+	fileW, err := os.OpenFile("test.md", os.O_WRONLY|os.O_CREATE, 0666)
+	defer fileW.Close()
+ 	// 创建读文件对象
+	reader := bufio.NewReader(fileR)
+	// 创建切片 存放读取数据
+	buf := make([]byte, 1024)
+	for {
+		n, err := reader.Read(buf)
+		if err == io.EOF {
+			break
+		} else if err != nil {
+			fmt.Println("read file error", err)
+      return
+		}
+    // 按字节写入
+		fileW.Write(buf[:n]) // 注意这里 读多少 写多少
+	}
+	fmt.Println("write over")
+}
+```
+
+### 1.7 目录操作
+
+```go
+f, err:= os.Open(path)
+
+func (f *File) Readdir(n int) ([]FileInfo, error) 
+// 参数：n 表示目录成员的各式。通常传-1，表示读取目录下所有对象
+// 返回值：当前目录下的文件（包括目录等）切片
+
+type FileInfo interface {
+	Name() string       // base name of the file
+	Size() int64        // length in bytes for regular files; system-dependent for others
+	Mode() FileMode     // file mode bits
+	ModTime() time.Time // modification time
+	IsDir() bool        // abbreviation for Mode().IsDir()
+	Sys() interface{}   // underlying data source (can return nil)
+}
+```
+
+目录操作练习：
+
+```go
+func main() {
+	fmt.Println("请求输入待查询的目录:")
+	var path string
+	fmt.Scan(&path)
+	// 打开目录
+	//f, err := ioutil.ReadDir(path)
+	f, err := os.Open(path)
+	if err != nil {
+		fmt.Println("OpenFile error", err)
+	}
+	defer f.Close()
+	// 读目录项
+	fileInfo, err := f.Readdir(-1) // -1读取所有文件
+	// 遍历返回的切片
+	for _, info := range fileInfo {
+		if info.IsDir() {
+			fmt.Printf("%s 是一个目录\n", info.Name())
+		} else {
+			fmt.Printf("%s 是一个文件\n", info.Name())
+		}
+	}
+}
+```
+
+判断目录文件是否以md结尾，并copy到当前目录下
+
+```go
+package main
+
+import (
+	"bufio"
+	"fmt"
+	"io"
+	"io/ioutil"
+	"os"
+	"strings"
+)
+
+/**
+ * @Description
+ * @Author TagYu
+ * @Date 2021/6/1 11:17 下午
+ **/
+
+func copyMd2Dir(filePath string, dstPath string) {
+	fR, err := os.Open(filePath)
+	if err != nil {
+		fmt.Println("open read file error", err)
+	}
+	defer fR.Close()
+	fW, err := os.OpenFile(dstPath, os.O_WRONLY|os.O_CREATE, 0666)
+	if err != nil {
+		fmt.Println("open write file error", err)
+	}
+	defer fW.Close()
+	// 创建读对象
+	reader := bufio.NewReader(fR)
+	buf := make([]byte, 1024)
+	writer := bufio.NewWriter(fW)
+	for {
+		// 按字节读取
+		n, err := reader.Read(buf)
+		if err == io.EOF {
+			break
+		} else if err != nil {
+			fmt.Println("read file error", err)
+			return
+		}
+		// 读多少写多少 按字节写入
+		writer.Write(buf[:n])
+	}
+	fmt.Printf("%v copy to %v over\n", filePath, dstPath)
+}
+
+func main() {
+	fmt.Println("请输入目录名:")
+	var path string
+	fmt.Scan(&path)
+	fileList, err := ioutil.ReadDir(path)
+	if err != nil {
+		fmt.Println("readDir err", err)
+	}
+	for _, file := range fileList {
+		if file.IsDir() {
+			continue
+		}
+		fileName := file.Name()
+		if strings.HasSuffix(fileName, ".md") {
+			fmt.Println("file is ", fileName)
+		}
+		filePath := path + "/" + fileName
+		dstPath := "./" + fileName
+		copyMd2Dir(filePath, dstPath)
+	}
+}
 ```
 
 ## 2. 命令行参数
