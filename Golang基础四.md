@@ -513,7 +513,7 @@ func main() {
 
 ​			io.SeekEnd 文件结尾位置
 
-​			返回值：表示从文件起始位置，到当前文件读写指针位置的偏移量
+​			返回值：表示**从文件起始位置**，到当前文件读写指针位置的偏移量
 
 #### 1.6.6 按字节写 WriteAt
 
@@ -580,7 +580,12 @@ func main() {
 ### 1.7 目录操作
 
 ```go
+// 1.
 f, err:= os.Open(path)
+// 2.
+f, err := os.OpenFile(path, os.O_RDONLY, os.ModeDir) // 只能以只读方式打开
+// 3.
+f, err := ioutil.ReadDir(path) // 直接返回FileInfo切片
 
 func (f *File) Readdir(n int) ([]FileInfo, error) 
 // 参数：n 表示目录成员的各式。通常传-1，表示读取目录下所有对象

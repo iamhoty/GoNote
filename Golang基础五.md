@@ -14,6 +14,12 @@
 
 4）一个程序至少有一个进程，一个进程至少有一个线程
 
+5）进程的状态：初始化、就绪态、运行态、挂起态和终止态
+
+进程、线程、协程
+
+稳定性强（追求稳定性）、节省资源（节省系统资源）、效率高（提高程序的利用率，大量时间访问网络 ）
+
 ### 1.2 并发和并行
 
 1）多线程程序在**单核**上运行，就是并发
@@ -45,6 +51,8 @@ Go主线程（有程序员直接称为线程/也可以理解成进程）：
 3）调度由用户控制
 
 4）协程是轻量级的线程
+
+5）主goroutine退出，那么子goroutine也会退出
 
 ![Snipaste_2021-03-18_23-27-14](./asset_5/Snipaste_2021-03-18_23-27-14.png)
 
@@ -102,9 +110,9 @@ func main() {
 
 M主线程可以执行在一个cpu上，也可以执行在多个cpu上；当有一个G阻塞时，会来回切换其他的G协程去执行，充分利用cpu的资源
 
-### 1.5 设置Golang运行的cpu数
+### 1.5 runtime 
 
-runtime
+#### 1.5.1 设置Golang运行的cpu数
 
 ![Snipaste_2021-03-19_00-14-41](./asset_5/Snipaste_2021-03-19_00-14-41.png)
 
@@ -116,6 +124,59 @@ func main()  {
 	runtime.GOMAXPROCS(cpuNum - 2)
 	fmt.Println("ok")
 }
+```
+
+#### 1.5.2 出让当前go程所占用的cpu时间片
+
+Gosched
+
+go程能获取大量的cpu占用时间，main则获得较少的机会。cpu是随机调度的。
+
+当再次获得cpu时，从出让位置继续回复执行。
+
+```go
+func main() {
+	go func() {
+		for {
+			fmt.Println("this is goroutine test")
+			//time.Sleep(100*time.Microsecond)
+		}
+	}()
+
+	for {
+		runtime.Gosched() // 出让当前cpu时间片
+		fmt.Println("this is a main")
+		//time.Sleep(100*time.Microsecond)
+	}
+}
+```
+
+#### 1.5.3 退出goroutine
+
+Goexit 结束调用该函数的**当前go程**，Goexit之前注册的defer都生效。
+
+return 返回当前函数调用到调用者那里去，return之前的defer注册生效。
+
+```go
+func test() {
+	defer fmt.Println("ccccccccccc")
+	runtime.Goexit() // 退出go程
+	fmt.Println("ddddddddd")
+}
+
+func main() {
+	go func() {
+		fmt.Println("aaaaaaaaaaa")
+		test()
+		fmt.Println("ddddddddddd")
+	}()
+	// 不想主go程结束 保证子go程执行
+	for {
+		;
+	}
+}
+// aaaaaaaaaaa
+// ccccccccccc
 ```
 
 ## 2. channel
@@ -192,6 +253,21 @@ func test1(n int) {
 	myMap[n] = res
 	lock.Unlock() // 解锁
 }
+
+func main() {
+	// 开启多个协程
+	for i := 1; i <= 20; i++ {
+		// 报错 fatal error: concurrent map writes 同一时刻操作map空间进行写入操作
+		go test1(i)
+	}
+	time.Sleep(time.Second * 10)
+	// 输出结果
+	lock.Lock() // 读的时候加锁
+	for i, v := range myMap {
+		fmt.Printf("map[%v]=%v\n", i, v)
+	}
+	lock.Unlock()
+}
 ```
 
 ### 2.3 不同goroutine协程通信方式
@@ -224,6 +300,10 @@ func test1(n int) {
 
 4） **channel是有类型的**，一个string的channel只能存放string类型数据。
 
+5）channel主要用来解决go程的同步问题以及协程之间的数据共享问题。
+
+6）goroutine奉行**通过通信来共享内存，而不是共享内存来通信**。
+
 ### 2.6 定义/声明channel
 
 var 管道名 chan 数据类型
@@ -237,6 +317,46 @@ var perChan Person
 说明：
 
 **channel是引用类型，需要make进行初始化**
+
+容量=0 无缓冲channel
+
+容量>0 有缓冲channel
+
+```go
+// 全局定义channel 用来完成数据同步操作
+var channel = make(chan int)
+
+// 定义一台打印机
+func printer(s string) {
+	for _, ch := range s{
+		fmt.Printf("%c", ch) // 共享资源屏幕 stdout
+		time.Sleep(time.Millisecond * 300)
+	}
+}
+
+// 定义2个人使用打印机
+func person1() {
+	printer("hello")
+	channel <- 8
+}
+
+func person2() {
+	_ = <- channel // 阻塞等待管道写入数据
+	printer("world")
+}
+
+func main() {
+	go person1()
+	go person2()
+	for {
+		;
+	}
+}
+```
+
+len：管道未读取完的数据
+
+cap：管道的容量
 
 ```go
 func main() {
@@ -272,7 +392,9 @@ func main() {
 
 3）如果从channel取出数据后，可以继续放入
 
-4）**在没有使用协程的情况下**，如果channel数据取完了，再取，就会报dead lock
+4）**在没有使用协程的情况下**，如果channel数据取完了，再取，就会报dead lock死锁
+
+5） 写端：如果没有读端在读，写端阻塞；读端：没有写端在写，读端阻塞。
 
 ```go
 func main()  {
@@ -294,6 +416,12 @@ func main()  {
 	// newCat.Name=汤姆猫
 }
 ```
+
+补充知识点：
+
+每当有一个进程启动时，系统会自动打开三个文件：标准输入（stdin）、标准输出（stdout）、标准错误（stderr）
+
+当进程运行结束，操作系统自动关闭。
 
 ### 2.8 channel的遍历和关闭
 
@@ -329,6 +457,24 @@ func main() {
 	for v := range intChan2 {
 		fmt.Println("v=", v)
 	}
+}
+```
+
+### 2.9 channel的数据传递
+
+```go
+func main(){
+	ch := make(chan bool)
+	go func() {
+		for i :=0; i < 2; i ++ {
+			fmt.Println("i = ", i)
+		}
+		// 通知主go 打印完毕
+		ch <- true
+	}()
+	// 阻塞等待管道写入
+	_ = <- ch
+	fmt.Println("over")
 }
 ```
 
