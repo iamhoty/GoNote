@@ -304,6 +304,26 @@ func main() {
 
 6）goroutine奉行**通过通信来共享内存，而不是共享内存来通信**。
 
+#### 2.5.1 无缓冲channel
+
+通道容量为0，len=0。不能存储数据
+
+channel应用于两个或两个以上go程中。
+
+具备同步的能力。**写入数据后必须读取数据，否则阻塞。**
+
+**读端和写端必须同时在线**，否则报错
+
+#### 2.5.2 有缓冲channel
+
+通道容量非0
+
+channel应用于两个或两个以上go程中。
+
+缓冲区可以进行数据存储。存储至容量上限，阻塞。
+
+具备异步能力，不需要同时操作缓冲区。写入小于容量的数据，不会阻塞。
+
 ### 2.6 定义/声明channel
 
 var 管道名 chan 数据类型
@@ -323,7 +343,7 @@ var perChan Person
 容量>0 有缓冲channel
 
 ```go
-// 全局定义channel 用来完成数据同步操作
+// 全局无缓冲定义channel 用来完成数据同步操作
 var channel = make(chan int)
 
 // 定义一台打印机
@@ -441,10 +461,21 @@ func main() {
 }
 ```
 
+```go
+num, ok := <- ch
+// ok --> false 已经关闭
+// ok --> true 未关闭
+关闭channel后，读取完数据再读，读取到数据为0
+num := <- ch // num = 0
+```
+
 #### 2.8.2 channel的遍历
 
-1）在遍历时，如果channel没有关闭，则回出现**deadlock的错误**
+使用range进行遍历
+
+1）在遍历时，如果channel没有关闭，则会出现**deadlock的错误**
 2）在遍历时，如果channel已经关闭，则会正常遍历数据，遍历完后，就会退出遍历
+3）不是range遍历 可以不用close管道
 
 ```go
 func main() {
@@ -477,6 +508,204 @@ func main(){
 	fmt.Println("over")
 }
 ```
+
+### 2.10 生产消费者模型
+
+![Snipaste_2021-07-02_21-38-24](./asset_5/Snipaste_2021-07-02_21-38-24.png)
+
+生产者：发送数据端
+
+消费者：接收数据端
+
+缓冲区：
+
+- 1.解耦：降低生产者和消费者之间的耦合度
+- 2.处理并发：**生产者和消费者数量不对等时**，能保持正常通信
+- 3.缓存：生产者和消费者**数据处理速度**不一致时，暂存
+
+```go
+// 生产者
+func producer(out chan<- int) {
+	for i := 0; i < 10; i++ {
+		out <- i * i
+	}
+	close(out)
+}
+
+// 消费者
+func consumer(in <-chan int) {
+	for num := range in {
+		fmt.Println("消费者拿到数据:", num)
+	}
+}
+
+func main() {
+	ch := make(chan int) // 双向channel
+	go producer(ch)
+	consumer(ch)
+}
+```
+
+### 2.11 定时器
+
+#### 2.11.1 三种定时方法：
+
+```go
+// 1.
+time.Sleep(time.Second)
+// 2.
+myTimer := time.NewTimer(time.Second*2)
+nowTime := <- myTimer.C
+// 3.
+nowTime := <-time.After(time.Second * 2)
+```
+
+#### 2.11.2 定时器创建
+
+Timer：创建定时器，指定定时时长，定时到达后，系统会自动向定时器的成员C写系统当前时间。（对channel的写操作）
+
+读取Timer.C得到定时后的系统时间，并且完成一次channel的读操作
+
+```go
+type Timer struct {
+	C <-chan Time
+	r runtimeTimer
+}
+
+main() {
+	fmt.Println("当前时间：", time.Now())
+	// 创建定时器
+	myTimer := time.NewTimer(time.Second*2) // 系统2秒后 会自动写入当前时间到channel
+	nowTime := <- myTimer.C // 读取
+	fmt.Println("现在时间：", nowTime)
+  // 2021-07-03 14:29:50.716854 +0800 CST m=+2.002591030
+}
+```
+
+#### 2.11.3 定时器的停止和重置
+
+```go
+myTimer := time.NewTimer(time.Second*10) // 创建定时器
+myTimer.Reset(time.Second) // 重置定时器
+myTimer.Stop() // 停止定时器，myTimer.C 会阻塞
+```
+
+#### 2.11.4 周期定时
+
+```go
+func main() {
+	fmt.Println("now:", time.Now())
+	quit := make(chan bool)
+	i := 0
+	myTicker := time.NewTicker(time.Second) // 隔一秒定时执行一次，不读取的话会阻塞
+	go func() {
+		for {
+			nowTime := <-myTicker.C // 一直读取数据
+			i++
+			fmt.Println("nowTime:", nowTime)
+			if i >= 8 {
+				quit <- true
+				break
+			}
+		}
+	}()
+
+	<-quit
+}
+```
+
+### 2.12 死锁
+
+1.单go程自己死锁，channel应该至少在2个以上的go程中进行通信。否则死锁
+
+```go
+func main() {
+  ch := make(chan int)
+  ch <- 10
+  num := <-ch // 死锁
+}
+```
+
+2.go程间channel访问顺序导致死锁
+
+使用channel一端读（写），要保证另一端写（读）操作，同时有机会执行
+
+```go
+func main() {  
+  ch := make(chan int)
+  num := <-ch // 死锁
+  go func() {
+    ch <- 10  
+  }()  
+}
+```
+
+3.多go程，多channel交叉死锁
+
+```go
+func main() {
+	ch1 := make(chan int)
+	ch2 := make(chan int)
+	go func() {
+		for {
+			select {
+			case num := <-ch1: // 等ch1
+				ch2 <- num
+			}
+		}
+	}()
+	for {
+		select {
+		case num := <-ch2: // 等ch2
+			ch1 <- num
+		}
+	}
+}
+```
+
+### 2.13 互斥锁
+
+访问共享数据之前，加锁，访问结束，解锁。在Ago程加锁期间，Bgo程加锁会失败--阻塞。直至Ago程解锁，B从阻塞处，恢复执行。
+
+```go
+var mutex sync.Mutex // 创建一个互斥锁，新建的互斥锁状态为0
+
+func Printer(str string) {
+	// 访问共享数据之前加锁
+	mutex.Lock()
+	for _, ch := range str {
+		fmt.Printf("%c", ch)
+		time.Sleep(time.Millisecond * 300)
+	}
+	mutex.Unlock() // 共享数据结束，解锁
+}
+
+func person01() {
+	printer("hello")
+}
+
+func person02() {
+	printer("world")
+}
+
+func main() {
+	go person01()
+	go person02()
+	for {
+		;
+	}
+}
+```
+
+### 2.14 读写锁
+
+
+
+```go
+
+```
+
+
 
 ## 3. goroutine和channel
 
@@ -611,7 +840,9 @@ func main() {
 
 ### 3.4 channel使用细节
 
-（1）channel可以只声明为只读或者只写
+#### 3.4.1 单向管道
+
+channel可以只声明为只读或者只写
 
 ```go
 func main() {
@@ -626,9 +857,38 @@ func main() {
 }
 ```
 
+- 双向channel 可以隐式转换为任意一种单向channel
+- 单向channel 不能转为双向channel
+
 ![Snipaste_2021-03-21_23-51-03](./asset_5/Snipaste_2021-03-21_23-51-03.png)
 
-（2）使用select可以解决管道读取数据的阻塞问题
+```go
+func main() {
+	ch := make(chan int)
+
+	var sendCh chan <- int = ch
+
+	sendCh <- 100 // 无缓冲channel 必须读 否则阻塞 报错deadlock!
+
+	var recvCh <- chan int = ch
+
+	num := <- recvCh // 阻塞 deadlock!
+
+	fmt.Println("num is :", num)
+
+	var ch2 chan int = recvCh // 转换失败
+}
+```
+
+#### 3.4.2 select
+
+使用select可以解决管道读取数据的阻塞问题
+
+通过select可以监听channel上的数据流动，select的用法与switch类似，由select开始一个新的选择块，每个选择块由case语句来描述。
+
+**但每个case语句必须是一个IO操作**（input、output、读写操作）
+
+使用场景：在不确定管道关闭或者管道未关闭的情况下使用
 
 ```go
 func main() {
@@ -638,7 +898,7 @@ func main() {
 		intChan <- i
 	}
 
-	stringChan := make(chan string, 5)
+	stringChan := make(chan string, 10)
 	for i := 0; i < 10; i++ {
 		stringChan <- "hello" + fmt.Sprintf("%d", i)
 	}
@@ -662,7 +922,75 @@ func main() {
 }
 ```
 
-（3）goroutine中使用recover，解决协程中出现的panic，这样不会影响到主线程和其他协程执行
+注意事项：
+
+- 监听的case中，没有满足监听条件，阻塞
+- 监听的case中，有多个满足监听条件，**任选一个执行**，谁争抢到cpu时间轮片谁执行
+- 可以使用default来处理所有case都不满足监听条件的状况。通常不用（会产生忙轮询）
+- select自身不带有循环机制，需借助外层for循环监听
+- break只能跳出select
+
+菲波那契练习
+
+```go
+func fibonacci(ch chan int, quit chan bool) {
+	for {
+		select {
+		case num := <-ch:
+			fmt.Print(num, " ") 
+      // 1 1 2 3 5 8 13 21 34 55 89 144 233 377 610 987 1597 2584 4181 6765
+		case <- quit:
+			return
+			//runtime.Goexit()
+		}
+	}
+}
+
+func main() {
+	ch := make(chan int)
+	quit := make(chan bool)
+
+	go fibonacci(ch, quit)
+
+	x, y := 1, 1
+	for i := 0; i < 20; i++ {
+		ch <- x
+		x, y = y, x+y
+	}
+	quit <- true
+	fmt.Println()
+}
+```
+
+超时处理：
+
+```go
+func main() {
+	ch := make(chan int)
+	quit := make(chan bool)
+	go func() {
+		for {
+			select {
+			case num := <-ch:
+				fmt.Println("num:", num)
+      // 没有读取到 等待3秒 退出  
+			case <- time.After(time.Second * 3 ): // 等待3秒钟
+				quit <- true
+				runtime.Goexit()
+			}
+		}
+	}()
+
+	<- quit
+	fmt.Println("finish")
+}
+```
+
+
+
+#### 3.4.3 recover
+
+goroutine中使用recover，解决协程中出现的panic，这样不会影响到主线程和其他协程执行
 
 ```go
 func sayHello() {
@@ -1098,12 +1426,6 @@ func main() {
 	ReflectCal(&c)
 }
 ```
-
-
-
-
-
-
 
 
 
