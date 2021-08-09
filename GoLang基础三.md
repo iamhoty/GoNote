@@ -354,7 +354,7 @@ func BubbleSort(arr *[5]int) {
 }
 ```
 
-#### 3.1.2 二分查找
+### 3.2 二分查找
 
 arr是有序数组并且是从小到大**有序的**
 
@@ -453,20 +453,25 @@ func mapExec()  {
 ### 4. map的增删改查
 
 ```go
+// /Users/yutang/Documents/go_test_project/src/gocode/project_07/map_demo/mapCrud.go
 // 添加 修改
 func createMap()  {
 	cities := make(map[string]string)
 	cities["no1"] = "北京"
 	cities["no2"] = "天津"
 	cities["no3"] = "上海"
-	fmt.Println(cities)
+	fmt.Println(cities) // map[no1:北京 no2:天津 no3:上海]
 	cities["no3"] = "深圳"
-	fmt.Println(cities)
-
+	fmt.Println(cities) // map[no1:北京 no2:天津 no3:深圳]
 }
 
 // 删除
 func deleteMap()  {
+  cities := map[string]string{
+		"no1": "北京",
+		"no2": "天津",
+		"no3": "上海",
+	}
 	// 删除不存在的key 也不会报错
 	delete(cities, "no1")
 	delete(cities, "no1")
@@ -479,6 +484,11 @@ func deleteMap()  {
 
 // 查询
 func mapRetrieve()  {
+  cities := map[string]string{
+		"no1": "北京",
+		"no2": "天津",
+		"no3": "上海",
+	}
   // findRet是查询结果，返回值为true false
 	val, findRet := cities["no1"]
 	if findRet {

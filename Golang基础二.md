@@ -156,7 +156,7 @@ switch grade := 90; {
 
 ​	（8）Type Switch： switch 语句还可以被用于type一switch 来判断某个interface 变量中实际指向的变量类型
 
-![image-20200819000220197](/Users/yutang/Documents/golang/asset_2/image-20200819000220197.png)
+![image-20200819000220197](./asset_2/image-20200819000220197.png)
 
 #### 	1.3.4 switch和if的比较
 
@@ -457,7 +457,7 @@ import (
 
 var Num1 int = 300
 //将计算的功能，放到一个函数中，然后在需要使用，调用即可
-//为了让其它包的文件使用Cal函数，需要将C大小类似其它语言的public
+//为了让其它包的文件使用Cal函数，需要将C大写类似其它语言的public
 func Cal(n1 float64, n2 float64, operator byte) float64 {
 
 	var res float64
@@ -576,7 +576,7 @@ func test(n int) {
 
 ​	1）执行一个函数时，就创建一个新的受保护的独立空间（新函数栈）
 ​	2）函数的局部变量是独立的，不会相互影响
-​	3）**递归必须向退出递归的条件逼近**，否则就是无限递归，死龟了：）
+​	3）**递归必须向退出递归的条件逼近**，否则就是无限递归，死归了：）
 ​	4）当一个函数执行完毕，或者遇到return，就会返回，遵守谁调用，就将结果返回给谁，同时当函数执行完毕或者返回时，该函数本身也会被系统销毁。
 
 ```go
@@ -1055,7 +1055,7 @@ func main() {
 func main() {
 	// 11.返回子串在字符串中第一次出现的index 不存在返回-1
 	index := strings.Index("NTL_abc", "bc")
-	fmt.Printf("index=%v\n", index) // 4
+	fmt.Printf("index=%v\n", index) // 5
 }
 ```
 
@@ -1065,7 +1065,7 @@ func main() {
 func main() {
 	// 12.得到最后一次的index
 	last_index := strings.LastIndex("go golang", "go")
-	fmt.Printf("last_index=%v\n", last_index)
+	fmt.Printf("last_index=%v\n", last_index) // 3
 }
 ```
 
@@ -1255,7 +1255,6 @@ func main() {
 #### 	（6）随机数种子
 
 ```go
-
 func main() {
   now := time.Now()
 	// 6.当前时间戳 Unix秒数和纳秒 作用是获取随机数字的种子

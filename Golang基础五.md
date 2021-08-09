@@ -663,6 +663,8 @@ func main() {
 }
 ```
 
+4.在go语言中，尽量不要将互斥锁、读写锁与channel混用。（隐性死锁）
+
 ### 2.13 互斥锁
 
 访问共享数据之前，加锁，访问结束，解锁。在Ago程加锁期间，Bgo程加锁会失败--阻塞。直至Ago程解锁，B从阻塞处，恢复执行。
@@ -699,11 +701,72 @@ func main() {
 
 ### 2.14 读写锁
 
+读写锁可以让多个读操作并发，同时读取，但是对于写操作时完全互斥的。也就是说，当一个goroutine进行写操作的时候，其他goroutine既不能进行读操作，也不能进行写操作。
 
+写锁优先级比读锁高。
 
 ```go
-
+// 写操作
+func (*RWMutex) Lock()
+func (*RWMutex) Unlock()
+// 读操作
+func (*RWMutex) RLock()
+func (*RWMutex) RUnlock()
 ```
+
+```go
+package main
+
+import (
+	"fmt"
+	"math/rand"
+	"sync"
+	"time"
+)
+
+var rwMutex sync.RWMutex
+var value int // 定义全局变量 模拟共享数据
+
+func readGo(idx int) {
+	for {
+		rwMutex.RLock() // 加读锁
+		fmt.Printf("%dth 读go程 读出 %d\n", idx, value)
+		rwMutex.RUnlock() // 读模式解锁
+	}
+}
+
+func writeGo(idx int) {
+	// 生成随机数
+	for {
+		num := rand.Intn(1000)
+		rwMutex.Lock() // 写模式加锁
+		value = num
+		fmt.Printf("%dth 写go程 写入 %d\n", idx, num)
+		time.Sleep(time.Millisecond * 300)
+		rwMutex.Unlock()
+	}
+}
+
+func main() {
+	// 随机数种子
+	rand.Seed(time.Now().UnixNano())
+
+	for i := 0; i < 5; i++ {
+		go writeGo( +1)
+	}
+
+	for i := 0; i < 5; i++ {
+		go readGo(i+1)
+	}
+	for {
+		;
+	}
+}
+```
+
+### 2.15 条件变量
+
+
 
 
 
