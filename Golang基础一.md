@@ -374,7 +374,7 @@ var age byte
 
 （1）浮点数都是有符号的
 
-（2）尾数部分可能丢失，造成精度丢失。精度要想准确适用**float64**
+（2）**尾数部分可能丢失，造成精度丢失**。精度要想准确适用**float64**
 
 使用细节：
 
@@ -393,6 +393,10 @@ num := 5.12E-2 // 5.12 / (10**2)
 ```
 
 ​	（5）一般推荐适用float64
+
+底层存储原理
+
+
 
 ### 2.7 字符类型
 
@@ -467,7 +471,7 @@ func main() {
 
 ### 2.9 字符串类型
 
-​	字符串就是**一串固定长度的字符**连接起来的字符序列。使用utf-8编码实现。
+​	字符串就是**一串固定长度的字符**连接起来的字符序列。**使用utf-8编码实现**。
 
 ```go
 package main
@@ -481,7 +485,22 @@ func main() {
 }
 ```
 
-​	使用细节：
+```go
+func main() {	
+	name := "唐煜"
+  // 中文字符占3个字节 一个字节8位
+	fmt.Println(name[0]) // 229 name[0]获取的是utf-8编码后的第一个字节
+	fmt.Println(name[1]) // 148
+	fmt.Println(name[2]) // 144
+
+	fmt.Printf("%T\n", name[1]) // uint8
+	for _, i := range name {
+		fmt.Println(">>>", i) // 21776 29020
+		fmt.Printf("%T\n", i) // int32
+	}
+```
+
+使用细节：
 
 ​	（1）字符串一旦赋值了，字符串就不能修改了：在Go中字符串是不可变的
 
@@ -510,6 +529,62 @@ fmt.Println(str3) // abc\nabc
 ```go
 var str = "hello " + "world"
 str += " haha!"
+```
+
+​	（4）len获取的是utf-8的**字节长度**
+
+```go
+name := "爸爸"
+// 一个中文占3个字节
+fmt.Println(len(name)) // 9
+cat := "tom"
+fmt.Println(len(cat)) // 3
+```
+
+​	（5）字符串转为字节切片
+
+```go
+// byte uint8
+byteSet := []byte(name) // [229 148 144 231 133 156]
+```
+
+​	（6）字节切片转为字符串
+
+```go
+byteList := []byte{229,148,144,231,133,156}
+targetString := string(byteList)
+```
+
+​	（7）将字符串转为 unicode 字符串码点的集合
+
+```go
+// rune int32 占4个字节
+tempSet := []rune(name) // 21776 21776
+```
+
+​	（8）rune切片转为字符串
+
+```go
+runeList := []rune{21776, 21776}
+targetName := string(runeList)
+```
+
+​	（9）计算字符串的字符长度
+
+```go
+runeLength := utf8.RuneCountInString(name)
+fmt.Println(runeLength) // 2
+```
+
+​	（10）string和字符
+
+```go
+// 数字转字符
+v1 := string(65) // A
+v2 := string(29240) // 爸
+// 字符串转数据
+v3, size := utf8.DecodeRuneInString("A") // 65  1
+// 应用场景：根据随机数 生成随机的字符（验证码）
 ```
 
 ### 2.10 基本数据类型的默认值
@@ -627,6 +702,7 @@ var b2 bool = true
 
 // 1.将num3 转为十进制
 str = strconv.FormatInt(int64(num3), 10)
+str = strconv.FormatInt(int64(num3), 2) // 转为2进制
 // str type string str="99"
 fmt.Printf("str type %T str=%q\n", str, str)
 

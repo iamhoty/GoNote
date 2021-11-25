@@ -943,7 +943,10 @@ import (
 func main() {
 	// 1.长度 一个汉字占三个字节
 	str := "hello你好"
-	fmt.Println("str len=", len(str))
+	fmt.Println("str len=", len(str)) // 11
+  // 2.字符长度
+  runeLength := utf8.RuneCountInString(str)
+	fmt.Println(runeLength) // 7
 }
 ```
 
@@ -1019,7 +1022,7 @@ func main() {
 }
 ```
 
-#### 	（8）查找字符串
+#### 	（8）查找包含字符串
 
 ```go
 func main() {
@@ -1073,7 +1076,7 @@ func main() {
 
 ```go
 func main() {
-	// 13.指定替换字符串 n=-1表示全部替换
+	// 13.指定替换字符串 n=-1表示全部替换 n>=1表示从左到右替换n个
   // str oldStr newStr 替换个数，得到一个新字符串
 	str = strings.Replace("go python", "python", "golang", -1)
 	fmt.Printf("str=%v\n", str) // go golang
@@ -1165,6 +1168,30 @@ func main() {
 	b = strings.HasSuffix("ftp://192.168.0.100", "100")
 	fmt.Printf("b=%v\n", b)
 }
+```
+
+#### （22）字符串拼接
+
+```go
+// 1.+号 效率低 不建议
+// 2.效率高一些
+dataList := []string{"hello", "world"}
+result := strings.Join(dataList, " ")
+fmt.Println(result) // hello world
+
+// 3.效率更高一些 go 1.10之前建议使用
+var buffer bytes.Buffer
+buffer.WriteString("hello")
+buffer.WriteString(" world")
+data := buffer.String()
+fmt.Println(data)
+
+// 4.效率更更高 go 1.10之后建议使用
+var builder strings.Builder
+builder.WriteString("hello")
+builder.WriteString(" world")
+value := builder.String()
+fmt.Println(value)
 ```
 
 ### 2.14 时间函数

@@ -127,6 +127,41 @@ func main() {
 }
 ```
 
+### 1.6 字符串数组
+
+字符串数组存储格式是len+str（字符串结构体），字符串数组每个元素占16个字节，每个地址相差16个字节。
+
+![Snipaste_2021-11-25_01-02-55](./asset_3/Snipaste_2021-11-25_01-02-55.png)
+
+```go
+names := [2]string{"tom", "cat"}
+// 数组存储字符串的结构，每个元素的指针指向真正的字符串
+type stringStruct struct {
+	str unsafe.Pointer
+	len int
+}
+```
+
+### 1.7 可变和拷贝
+
+可变：数组的元素可以被更改（**长度和类型不可修改**）
+
+```go
+name := [2]string{"tom", "cat"}
+name[1] = "jerry"
+```
+
+拷贝：重新拷贝
+
+```go
+name1 := [2]string{"tom", "cat"}
+name2 := name1
+
+name1[1] = "jerry"
+// name1 >> tom jerry
+// name2 >> tom cat
+```
+
 ## 2. 切片
 
 ### 为什么使用切片
@@ -416,7 +451,7 @@ func BinarySearch(arr *[6]int, leftIndex int, rightIndex int, findValue int) {
 
 ```go
 var a map[string]string // var只是声明 而没有创建初始化空间 需要make才能初始化
-a = make(map[string]string, 10)  // make进行初始化
+a = make(map[string]string, 10)  // make进行初始化开辟空间
 a["no1"] = "宋江"
 a["no2"] = "吴用"
 fmt.Println(a)
@@ -531,7 +566,7 @@ len(cities)
 
 ```go
 // 要求：使用一个map来记录monster的信息name 和age，
-// 也就是说一个monster 对应一个map，并且妖怪的个数可以动态的增加=》map切片
+// 也就是说一个monster 对应一个map，并且妖怪的个数可以动态的增加=> map切片
 func main() {
 	// make切片
 	monsters := make([]map[string]string, 2)
@@ -679,7 +714,7 @@ value := info["name"]
 在map中读取数据时，内部的执行流程为：
 
 - 第一步：结合哈希因子和键 name 生成哈希值。
-- 第二步：获取哈希值的后8位，并根据后8位的值来决定将去哪个桶读取。
+- 第二步：获取哈希值的后B位，并根据后B位的值来决定将去哪个桶读取。
 - 第三步：确定桶之后，在根据key的哈希值计算出tophash（高8位），根据tophash和key去桶中查找数据。
 
 ```go
