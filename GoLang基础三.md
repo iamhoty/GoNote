@@ -203,9 +203,9 @@ fmt.Println("切片的容量（可动态变化）", cap(slice1)) // 4
 
 ```go
 type slice struct{
-	ptr *[2]int
-	len int
-  cap int
+	ptr *[2]int // 数据存储的地址
+	len int // 存储数据个数
+  cap int // 容量
 }
 ```
 
@@ -354,6 +354,56 @@ str = string(arr)
 arr := []rune(str)
 arr[0] = '北'
 str = string(arr)
+```
+
+### 2.8 自定扩容
+
+```go
+v1 := make([]int, 1, 3)
+v2 = append(v1, 66)
+fmt.Println(v1) // [0]
+fmt.Println(v2) // [0 66]
+// v1和v2引用的地址都是同一个
+```
+
+![Snipaste_2022-01-09_17-27-22](./asset_3/Snipaste_2022-01-09_17-27-22.png)
+
+```go
+v1 := []int{11, 22, 33}
+v2 = append(v1, 44) // 扩容内存地址发生变化
+```
+
+![Snipaste_2022-01-09_17-33-50](./asset_3/Snipaste_2022-01-09_17-33-50.png)
+
+扩容规则：
+
+https://blog.csdn.net/weixin_37509194/article/details/112001014
+
+![Snipaste_2022-01-09_22-31-26](./asset_3/Snipaste_2022-01-09_22-31-26.png)
+
+切片扩容规则和你追加的元素个数有关
+切片扩容和你匹配的操作系统分配的内存规格有关（32 48 64） 间隔16
+和你定义的切片类型有关
+
+```go
+package main
+
+import (
+	"fmt"
+)
+func main() {
+	arr1 := [4]int{1,2,3,4}
+	//此时slice1为[1,2,3] 长度为3，容量为4
+	slice1 :=arr1[:3]
+	fmt.Println(slice1,len(slice1),cap(slice1))
+	slice1 = append(slice1,5000,6000)
+	fmt.Println(slice1,len(slice1),cap(slice1))
+}
+// 此时容量由原来的4扩容到了8
+// 原来的容量为4，追加了5000,6000后变为了6个，此时
+// 4*2>6,满足了脑图中的第二种情况，并且元素个数小于1024，先扩容2倍
+// 由于64位操作系统下，一个int类型占8个字节，所以8*8=64
+// 此时匹配操作系统预先分配好的内存规格，规则正好匹配了64，所以用64/8=8，所以扩容后的容量为8
 ```
 
 ## 3. 排序和查找
@@ -656,13 +706,19 @@ func main() {
 
 ### 10. map底层原理
 
+b站：https://www.bilibili.com/video/BV1u5411W79w?p=65&spm_id_from=pageDriver
+
 其核心是有**hmap**和**bmap**两个结构体实现。
 
 ![Snipaste_2021-11-16_00-53-33](./asset_3/Snipaste_2021-11-16_00-53-33.png)
 
-bmap是真正存储键值对的地方。每个bmap可以存储8个键值对。
+bmap是真正存储键值对的地方。每个bmap可以**存储8个键值对**。
 
-hmap负责记录键值对个数和bmap个数等信息。
+hmap负责记录**键值对个数**和**bmap个数**等信息。
+
+buckets bmap数组
+
+B创建多少个bmap桶，2**B
 
 #### 10.1 初始化
 
@@ -672,10 +728,8 @@ info = make(map[string]string, 10)
 ```
 
 - 第一步：创建一个hmap结构体对象
-
 - 第二步：生成一个哈希因子hash0并赋值到hmap对象中（用于后续为key创建哈希值）
-
-- 第三步：根据hint=10，并根据算法规则来创建B，当前B应该为1。
+- 第三步：根据hint=10，并根据算法规则来创建B，当前B应该为1，也就是会创建2个bmap桶。
 
 - 第四步：根据B去创建桶（bmap对象）并存放在buckets数组中，当前bmap的数量应为2。
 
@@ -683,7 +737,7 @@ info = make(map[string]string, 10)
 
   ​	当B>=4时，根据B创建桶的个数的规则为：`2**B + 2**(B-4)`（标准桶+溢出桶）
 
-  ​	注意：每个bmap中可以存储8个键值对，当不够存储时需要使用溢出桶，并将当前bmap中的overflow字段指向溢出桶的位置。
+  ​	注意：每个bmap中可以存储8个键值对，当不够存储时需要使用溢出桶，并将当前bmap桶中的overflow字段指向溢出桶的位置。
 
 #### 10.2 写入数据
 
@@ -715,10 +769,10 @@ value := info["name"]
 
 - 第一步：结合哈希因子和键 name 生成哈希值。
 - 第二步：获取哈希值的后B位，并根据后B位的值来决定将去哪个桶读取。
-- 第三步：确定桶之后，在根据key的哈希值计算出tophash（高8位），根据tophash和key去桶中查找数据。
+- 第三步：确定桶之后，在根据key的哈希值计算出tophash（高8位），根据tophash和key去桶中tophash数组和key、value数组中查找数据。
 
 ```go
-当前桶如果没有哦找到，则根据overflow再去溢出桶中找，均未找到则表示key不存在。
+当前桶如果没有找到，则根据overflow再去溢出桶中找，均未找到则表示key不存在。
 ```
 
 #### 10.4 扩容
@@ -731,7 +785,7 @@ value := info["name"]
 
 - 使用太多了溢出桶（溢出桶使用的太多会导致map处理速度降低）。
 
-  ​	B <= 15，已使用的溢出桶个数 >= `2**B`时，引发等量扩容。
+  ​	B <= 15，已使用的溢出桶个数 >= `2**B`时，引发等量扩容。（等量扩容桶的个数不变，只是重新整理数据）
 
   ​	B > 15，已使用的溢出桶个数 >= `2**15`时，引发等量扩容。
 
