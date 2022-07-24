@@ -572,7 +572,7 @@ func test(n int) {
 }
 ```
 
-​	函数递归需要遵守的重要原则：
+​	函数递归需要遵守的重要原则：+
 
 ​	1）执行一个函数时，就创建一个新的受保护的独立空间（新函数栈）
 ​	2）函数的局部变量是独立的，不会相互影响
@@ -1192,6 +1192,30 @@ builder.WriteString("hello")
 builder.WriteString(" world")
 value := builder.String()
 fmt.Println(value)
+```
+
+#### （23）字符串转为reader
+
+```go
+func main() {
+	reader := strings.NewReader("hello world\nxiaoming")
+	scanner := bufio.NewScanner(reader)
+	//scanner.Split(split)
+	for scanner.Scan() {
+		fmt.Println(scanner.Text())
+	}
+}
+// hello world
+// xiaoming
+```
+
+#### （24）字符串空白分割
+
+​	返回将字符串按照空白（unicode.IsSpace确定，可以是一到多个连续的空白字符）分割的多个字符串。如果字符串全部是空白或者是空字符串的话，会返回空切片。
+
+```go
+fmt.Printf("Fields are: %q", strings.Fields("  foo bar  baz   "))
+// ["foo" "bar" "baz"]
 ```
 
 ### 2.14 时间函数

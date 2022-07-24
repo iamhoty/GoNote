@@ -177,6 +177,12 @@ func main() {
 // ccccccccccc
 ```
 
+#### 1.5.4 查看go程数量
+
+```go
+fmt.Println(runtime.NumGoroutine()) // 1
+```
+
 ## 2. channel
 
 ### 2.1 案例
@@ -1432,7 +1438,7 @@ func TestReflectStructPtr(t *testing.T) {
 	t.Log("reflect.TypeOf", st.Kind().String()) //.ptr
 	st = st.Elem() //st指向的类型
 	t.Log("reflect.TypeOf.Elem", st.Kind().String()) //struct
-	elem = reflect.New(st)  // New返回一个value类型值，该值持有一个指向类型为typ的新申请的零值的指针t.Log("reflect.New", elem.Kind().string())//ptr
+	elem = reflect.New(st)  // New返回一个value类型值，该值持有一个指向类型为type的新申请的零值的指针t.Log("reflect.New", elem.Kind().string())//ptr
 	t.Log("reflect.New.Elem", elem.Elem().Kind().String()) //struct
 	// model就是创建的user结构体变量（实例）
 	model = elem.Interface().(*user) // model是*user它的指向和elem是一样的.
@@ -1479,7 +1485,7 @@ func ReflectCal(c interface{})  {
 	// 调用GetSub方法 参数是value切片
 	name := []reflect.Value{reflect.ValueOf("tom")}
 	val.Elem().Method(0).Call(name)
-	// tangyu完成了减法运行 8-3=5
+	// tom完成了减法运行 8-3=5
 }
 
 func main() {
